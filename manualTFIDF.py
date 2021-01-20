@@ -1,11 +1,11 @@
 import pandas as pd
 import re
-from sklearn.feature_extraction.text import TfidfVectorizer
 import tweepy
 import csv
 import string
+import math
 
-def scrapping(username):
+def scraping(username):
     access_token = '528154427-gBB0wjsslCqhSKmpAAOdVabhz8NgrFIrm28eHYKG'
     access_token_secret = 'bEUzJC2b2O40IcBI2K7VA8xDiqvor9bIuoUcuxFnjv4rz'
     api_key = 'ql4wvYMDOEzAayjRthZBazXm7'
@@ -18,8 +18,8 @@ def scrapping(username):
         
     user_timeline = api.user_timeline(username, count=100, include_rts=False)
 
-    file1=open('DATA_TWEETS.csv','a+',encoding='utf-8')
-    writer = csv.writer(file1)
+    fileTweets = open('DATA_TWEETS_3.csv','a+',encoding='utf-8')
+    writer = csv.writer(fileTweets)
     # writer.writerow(['username','tweets'])
     for tweet in user_timeline:
         idStat = tweet.id_str
@@ -27,7 +27,7 @@ def scrapping(username):
         full_text = status.full_text
         writer.writerow([username,str(full_text.encode('utf-8'))[2:-1]])
 
-    file1.close()
+    fileTweets.close()
 
 def remove_unwanted_cols(dataset,cols):
     for col in cols:
@@ -42,7 +42,7 @@ def numOfWordsCount(bagOfWords):
     
     return numOfWords
 
-def computeTF(bagOfWords):
+def TFCount(bagOfWords):
     numOfWords = numOfWordsCount(bagOfWords)
     tfDict = {}
     bagOfWordsCount = len(bagOfWords)
@@ -51,92 +51,160 @@ def computeTF(bagOfWords):
 
     return tfDict
 
-def tfidf_count():
-    data = pd.read_csv('DATA_TWEETS.csv',encoding='iso-8859-9')    
+def IDFCount(numOfWordsList):
+    idfDict = {}
+    # print(numOfWordsList)
+    N = len(numOfWordsList)
+    # print(N)
+    
+    for i in range(N):
+        idfDict.update(dict.fromkeys(numOfWordsList[i].keys(), 0))
+    
+    # print(idfDict)
+
+    for document in numOfWordsList:
+        for word, val in document.items():
+            if val > 0:
+                idfDict[word] += 1
+    
+    for word, val in idfDict.items():
+        idfDict[word] = math.log(N / float(val))
+    
+    return idfDict
+
+def TFIDFCount(tfTotal, idf, tfidfUsername):
+    # tfidf = {}
+    # looping dalam list TF
+    for i in range (len(tfTotal)):
+        tfidf = dict.fromkeys(idf.keys(), 0)
+        for word, val in tfTotal[i].items():
+            tfidf[word] = val * idf[word]
+
+        df = pd.DataFrame.from_dict(tfidf, orient='index',columns=["TFIDF"])
+        df.insert(1, "username", tfidfUsername[i], True)
+        df = df.sort_values('TFIDF', ascending=False)
+        df.to_csv('hasilTFIDF.csv',mode='a')
+
+    # return df
+
+def TFIDFProcessing():
+    data = pd.read_csv('DATA_TWEETS_3.csv',encoding='iso-8859-9')    
 
     usernameList = data['username']
     tweets = remove_unwanted_cols(data,['username'])
-    awal = 0
-    akhir =-1
-    #awal adalah index awal, akhir adalah pembatas kalo beda username
+    start = 0
+    end =-1
+    #start adalah index awal, end adalah pembatas kalo beda username
 
+    N=0 # N adalah total dokumen untuk hitung IDF 
+    combineTweets = [] #gabungan tweets dari semua username yang ada
+    numOfWordsList = [] #list yang isinya dict numofwords dari masing2 username
+    tfTotal = [] #list yang isinya adalah seluruh tf yang ada
+    tfidfUsername = [] #list untuk menyimpan username yang jumlahnya sesuai dengan banyak org yg di scraping
     for i in range(len(usernameList.index)):  
         if (i == len(usernameList.index)-1 or usernameList[i] != usernameList[i+1] ):
-            processed_tweets = ''
-            tweetList = []
             username = usernameList[i]
-            awal = akhir +1
-            akhir = i
-            X = tweets.iloc[awal:akhir+1,0].values
-          
-            for tweet in range(0, len(X)):  
+            tfidfUsername.append(username)
+            tweetList = []
+            start = end +1
+            end = i
+            rawData = tweets.iloc[start:end+1,0].values #untuk membaca data dari index dan kolom
+            # N adalah total dokumen untuk hitung IDF 
+            N += 1
+
+            for tweet in range(0, len(rawData)):  
+
                 # Removing hashtag + username
-                processed_tweet = re.sub(r'\@\w+|\#','', str(X[tweet]))
+                processedTweet = re.sub(r'\@\w+|\#','', str(rawData[tweet]))
 
                 # Removing urls
-                processed_tweet = re.sub(r"http\S+|www\S+|https\S+", '', processed_tweet, flags=re.MULTILINE)
+                processedTweet = re.sub(r"http\S+|www\S+|https\S+", '', processedTweet, flags=re.MULTILINE)
 
                 #Removing digits
-                # processed_tweet = re.sub(r'\d+','', processed_tweet)
+                # processedTweet = re.sub(r'\d+','', processedTweet)
                 
                 #Removing \n
-                processed_tweet = re.sub(r'\\n',' ', processed_tweet)
+                processedTweet = re.sub(r'\\n',' ', processedTweet)
 
                 # Remove all the special characters
-                processed_tweet = re.sub(r'[^\\\w]', ' ', processed_tweet)
+                processedTweet = re.sub(r'[^\\\w]', ' ', processedTweet)
                     
                 # remove all single characters
-                processed_tweet = re.sub(r'\s+[a-zA-Z]\s+', ' ', processed_tweet)
+                processedTweet = re.sub(r'\s+[a-zA-Z]\s+', ' ', processedTweet)
             
                 # Remove single characters from the start
-                processed_tweet = re.sub(r'\^[a-zA-Z]\s+', ' ', processed_tweet) 
+                processedTweet = re.sub(r'\^[a-zA-Z]\s+', ' ', processedTweet) 
             
                 # Substituting multiple spaces with single space
-                processed_tweet= re.sub(r'\s+', ' ', processed_tweet, flags=re.I)
+                processedTweet= re.sub(r'\s+', ' ', processedTweet, flags=re.I)
+
                 # Converting to Lowercase
-                processed_tweet = processed_tweet.lower()
+                processedTweet = processedTweet.lower()
                 
-                processed_tweets += processed_tweet 
-                processed_tweets += ' '
+                #Untuk menggabungkan seluruh tweet ke dalam satu list 
+                tweetList.extend(processedTweet.split(' '))
 
-            # tweetList = list(processed_tweets.split("#")) 
-            
-            # tweetList.append(processed_tweets)
-            # print(tweetList)
-
-
-            # ======================
+            # ====================== BAGIAN TF ===================
             # panggil def baru untuk itung manual
-            bagOfWords = processed_tweets.split(' ')
-            tf = computeTF(bagOfWords)
+            tf = TFCount(tweetList)
             # print(tf)
+            tfTotal.append(tf)
 
-            df = pd.DataFrame.from_dict(tf, orient='index',columns=["TF"])
-            df = df.sort_values('TF', ascending=False)
-            df.insert(1, "username", username, True) 
-            df.to_csv('hasilTF.csv',mode='a')
+            # df = pd.DataFrame.from_dict(tf, orient='index',columns=["TF"])
+            # df = df.sort_values('TF', ascending=False)
+            # df.insert(1, "username", username, True)
+            # df.to_csv('hasilTF_3(List).csv',mode='a')
+
+            # untuk gabungin tweet semua username
+            # combineTweets.extend(tweetList)
+
+            #buat list yang isinya numOfWords masing2 username
+            numOfWordsList.append(numOfWordsCount(tweetList))
+
+    # print(numOfWordsList)
+    # print(tfTotal)
+    # ====================== BAGIAN IDF ===================
+    # panggil function IDFCount
+    # print(N)
+    idf = IDFCount(numOfWordsList)
+    # print(idf)
+
+    # df = pd.DataFrame.from_dict(idf, orient='index',columns=["IDF"])
+    # df = df.sort_values('IDF', ascending=False)
+    # df.to_csv('hasilIDF_3.csv',mode='a')
+
+    # =======================BAGIAN TFIDF ====================
+    # panggil function TFIDFCount
+    tfidf = TFIDFCount(tfTotal,idf,tfidfUsername)
 
 if __name__ == "__main__":
 
     fileopen  = open("username.txt", 'r') 
     filename = fileopen.readlines()
 
-    # file1=open('DATA_TWEETS.csv','a+',encoding='utf-8')
+    #untuk tulis di paling atas, username dan tweets
+    # file1=open('DATA_TWEETS_3.csv','a+',encoding='utf-8')
     # writer = csv.writer(file1)
     # writer.writerow(['username','tweets'])
     # file1.close()
 
-    for i in filename:
-        username = i.strip()
-        # scrapping(username)
+    #looping baca dari txt, untuk scrapping
+    # for i in filename:
+    #     username = i.strip()
+        # scraping(username)
 
-    tfidf_count()
+    #panggil function untuk hitung TFIDF
+    TFIDFProcessing()
     
     fileopen.close()
 
-    # Dinamis 
+    # Flow code ^___^
     # 1. baca txt isi username
     # 2. scrapping per username
-    # 3. hasil scrapping >> csv (mau 1 csv apa gabung?)
-    # 4. dari csv baru di tfidf per orang!
+    # 3. hasil scrapping dalam satu csv namanya DATA_TWEETS
+    # 4. Panggil function TFIDFCount
+    # 5. Di dalam function itu, baca dari csv, per username
+    # 6. Bersihin datanya
+    # 7. Panggil function TFCount
+    # 8. Panggil function IDFCount
     # ------------------
