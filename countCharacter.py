@@ -18,7 +18,7 @@ def scraping(username):
         
     user_timeline = api.user_timeline(username, count=2000, include_rts=False)
 
-    fileTweets = open('newTweets.csv','a+',encoding='utf-8')
+    fileTweets = open('2ndData01.csv','a+',encoding='utf-8')
     writer = csv.writer(fileTweets)
     for tweet in user_timeline:
         idStat = tweet.id_str
@@ -86,8 +86,8 @@ def TFIDFCount(tfTotal, idf, tfidfUsername):
 
     # return df
 
-def TFIDFProcessing():
-    data = pd.read_csv('newTweets.csv',encoding='iso-8859-9')    
+def ProcessData():
+    data = pd.read_csv('2ndDATA01.csv',encoding='iso-8859-9')    
 
     usernameList = data['username']
     tweets = remove_unwanted_cols(data,['username'])
@@ -112,6 +112,7 @@ def TFIDFProcessing():
             N += 1
 
             for tweet in range(0, len(rawData)):  
+                processedTweet = str(rawData[tweet])
 
                 # Removing hashtag + username
                 processedTweet = re.sub(r'\@\w+|\#','', str(rawData[tweet]))
@@ -122,42 +123,54 @@ def TFIDFProcessing():
                 #Removing digits
                 # processedTweet = re.sub(r'\d+','', processedTweet)
                 
+                # Removing hexa
+                processedTweet = re.sub(r'\\x..','', processedTweet)
+
                 #Removing \n
                 processedTweet = re.sub(r'\\n',' ', processedTweet)
 
+                # Taking only special characters
+                processedTweet = re.sub(r'\w',' ', processedTweet)
+
                 # Remove all the special characters
-                processedTweet = re.sub(r'[^\\\w]', ' ', processedTweet)
+                # processedTweet = re.sub(r'[^\\\w]', ' ', processedTweet)
                     
                 # remove all single characters
-                processedTweet = re.sub(r'\s+[a-zA-Z]\s+', ' ', processedTweet)
+                # processedTweet = re.sub(r'\s+[a-zA-Z]\s+', ' ', processedTweet)
             
                 # Remove single characters from the start
-                processedTweet = re.sub(r'\^[a-zA-Z]\s+', ' ', processedTweet) 
+                # processedTweet = re.sub(r'\^[a-zA-Z]\s+', ' ', processedTweet) 
             
                 # Substituting multiple spaces with single space
-                processedTweet= re.sub(r'\s+', ' ', processedTweet, flags=re.I)
+                # processedTweet= re.sub(r'\s+', ' ', processedTweet, flags=re.I)
 
                 # Converting to Lowercase
                 processedTweet = processedTweet.lower()
                 
                 #Untuk menggabungkan seluruh tweet ke dalam satu list 
+                
                 tweetList.extend(processedTweet.split(' '))
-
-            tf = numOfWordsCount(tweetList)
+                tweetList = list(filter(None, tweetList))
 
             # ====================== BAGIAN TF ===================
             # panggil def baru untuk itung manual
             # tf = TFCount(tweetList)
             # print(tf)
             # tfTotal.append(tf)
+            # print(tweetList)
 
-            df = pd.DataFrame.from_dict(tf, orient='index',columns=["TF"])
-            df = df.sort_values('TF', ascending=False)
-            df.insert(1, "username", username, True)
-            df.to_csv('testingTF(baru).csv',mode='a')
 
             # untuk gabungin tweet semua username
             # combineTweets.extend(tweetList)
+
+            # hasil hitung karakter 
+            CharCountResult = numOfWordsCount(tweetList)
+            # print(hasil)
+
+            df = pd.DataFrame.from_dict(CharCountResult, orient='index',columns=["Jumlah Karakter"])
+            df = df.sort_values('Jumlah Karakter', ascending=False)
+            df.insert(1, "username", username, True)
+            df.to_csv('count character.csv',mode='a')
 
             #buat list yang isinya numOfWords masing2 username
             # numOfWordsList.append(numOfWordsCount(tweetList))
@@ -180,8 +193,8 @@ def TFIDFProcessing():
 
 if __name__ == "__main__":
 
-    fileopen  = open("username10.txt", 'r') 
-    filename = fileopen.readlines()
+    # fileopen  = open("username10.txt", 'r') 
+    # filename = fileopen.readlines()
 
     #untuk tulis di paling atas, username dan tweets
     #file1=open('2ndDATA01.csv','a+',encoding='utf-8')
@@ -195,9 +208,9 @@ if __name__ == "__main__":
     #     scraping(username)
 
     #panggil function untuk hitung TFIDF
-    TFIDFProcessing()
+    ProcessData()
     
-    fileopen.close()
+    # fileopen.close()
 
     # Flow code ^___^
     # 1. baca txt isi username

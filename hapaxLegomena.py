@@ -18,7 +18,7 @@ def scraping(username):
         
     user_timeline = api.user_timeline(username, count=2000, include_rts=False)
 
-    fileTweets = open('newTweets.csv','a+',encoding='utf-8')
+    fileTweets = open('2ndData01.csv','a+',encoding='utf-8')
     writer = csv.writer(fileTweets)
     for tweet in user_timeline:
         idStat = tweet.id_str
@@ -50,26 +50,6 @@ def TFCount(bagOfWords):
 
     return tfDict
 
-def IDFCount(numOfWordsList):
-    idfDict = {}
-    # print(numOfWordsList)
-    N = len(numOfWordsList)
-    # print(N)
-    
-    for i in range(N):
-        idfDict.update(dict.fromkeys(numOfWordsList[i].keys(), 0))
-    
-    # print(idfDict)
-
-    for document in numOfWordsList:
-        for word, val in document.items():
-            if val > 0:
-                idfDict[word] += 1
-    
-    for word, val in idfDict.items():
-        idfDict[word] = math.log(N / float(val))
-    
-    return idfDict
 
 def TFIDFCount(tfTotal, idf, tfidfUsername):
     # tfidf = {}
@@ -87,7 +67,7 @@ def TFIDFCount(tfTotal, idf, tfidfUsername):
     # return df
 
 def TFIDFProcessing():
-    data = pd.read_csv('newTweets.csv',encoding='iso-8859-9')    
+    data = pd.read_csv('2ndDATA01.csv',encoding='iso-8859-9')    
 
     usernameList = data['username']
     tweets = remove_unwanted_cols(data,['username'])
@@ -141,20 +121,19 @@ def TFIDFProcessing():
                 processedTweet = processedTweet.lower()
                 
                 #Untuk menggabungkan seluruh tweet ke dalam satu list 
-                tweetList.extend(processedTweet.split(' '))
 
-            tf = numOfWordsCount(tweetList)
+                tweetList.extend(processedTweet.split(' '))
 
             # ====================== BAGIAN TF ===================
             # panggil def baru untuk itung manual
-            # tf = TFCount(tweetList)
+            #tf = TFCount(tweetList)
             # print(tf)
             # tfTotal.append(tf)
 
-            df = pd.DataFrame.from_dict(tf, orient='index',columns=["TF"])
-            df = df.sort_values('TF', ascending=False)
-            df.insert(1, "username", username, True)
-            df.to_csv('testingTF(baru).csv',mode='a')
+            # df = pd.DataFrame.from_dict(tf, orient='index',columns=["TF"])
+            # df = df.sort_values('TF', ascending=False)
+            # df.insert(1, "username", username, True)
+            # df.to_csv('hasilTF_3(List).csv',mode='a')
 
             # untuk gabungin tweet semua username
             # combineTweets.extend(tweetList)
@@ -162,12 +141,34 @@ def TFIDFProcessing():
             #buat list yang isinya numOfWords masing2 username
             # numOfWordsList.append(numOfWordsCount(tweetList))
 
+            #dict hasil dari num of words
+            hasilNumOfWords = numOfWordsCount(tweetList)
+
+            # looping in the dict to check in kbbi 
+            # jumlahKata = dict.fromkeys(hasilNumOfWords.keys(), 0)
+            numOfWordsClear = {} #dict yang nampung kata-kata yang ada di kbbi
+            with open('KBBI.txt') as f:
+                kbbi = [line.strip() for line in f]
+
+            for key,value in hasilNumOfWords.items():
+                if (key in kbbi) and (value == 1):
+                    numOfWordsClear[key] = value
+                else:
+                    continue
+
+            # print(numOfWordsClear)
+            df = pd.DataFrame.from_dict(numOfWordsClear, orient='index',columns=["Word Count"])
+            df = df.sort_values('Word Count', ascending=True)
+            df.insert(1, "username", username, True)
+            df.to_csv('WordCount_hapaxLegomena.csv',mode='a')
+    
+    
     # print(numOfWordsList)
     # print(tfTotal)
     # ====================== BAGIAN IDF ===================
     # panggil function IDFCount
     # print(N)
-    # idf = IDFCount(numOfWordsList)
+ #   idf = IDFCount(numOfWordsList)
     # print(idf)
 
     # df = pd.DataFrame.from_dict(idf, orient='index',columns=["IDF"])
@@ -176,7 +177,7 @@ def TFIDFProcessing():
 
     # =======================BAGIAN TFIDF ====================
     # panggil function TFIDFCount
-    # tfidf = TFIDFCount(tfTotal,idf,tfidfUsername)
+ #   tfidf = TFIDFCount(tfTotal,idf,tfidfUsername)
 
 if __name__ == "__main__":
 
